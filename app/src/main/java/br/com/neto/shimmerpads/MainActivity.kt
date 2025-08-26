@@ -20,28 +20,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             ShimmerpadsTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                    PianoScreenVertical(
+                        modifier = Modifier.padding(innerPadding),
+                        onKeyPressed = { keyId ->
+                            println("Tecla pressionada: $keyId")
+                        }
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ShimmerpadsTheme {
-        Greeting("Android")
     }
 }
