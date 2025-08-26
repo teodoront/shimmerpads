@@ -21,10 +21,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.content.res.Configuration
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -39,18 +42,18 @@ private data class PianoKey(
 
 // Oitava de C4 a B4
 private val octaveC4toB4 = listOf(
-    PianoKey("C4",  false, "c4"),
-    PianoKey("C#4", true,  "cs4"),
-    PianoKey("D4",  false, "d4"),
-    PianoKey("D#4", true,  "ds4"),
-    PianoKey("E4",  false, "e4"),
-    PianoKey("F4",  false, "f4"),
-    PianoKey("F#4", true,  "fs4"),
-    PianoKey("G4",  false, "g4"),
-    PianoKey("G#4", true,  "gs4"),
-    PianoKey("A4",  false, "a4"),
-    PianoKey("A#4", true,  "as4"),
-    PianoKey("B4",  false, "b4"),
+    PianoKey("C4", false, "c4"),
+    PianoKey("C#4", true, "cs4"),
+    PianoKey("D4", false, "d4"),
+    PianoKey("D#4", true, "ds4"),
+    PianoKey("E4", false, "e4"),
+    PianoKey("F4", false, "f4"),
+    PianoKey("F#4", true, "fs4"),
+    PianoKey("G4", false, "g4"),
+    PianoKey("G#4", true, "gs4"),
+    PianoKey("A4", false, "a4"),
+    PianoKey("A#4", true, "as4"),
+    PianoKey("B4", false, "b4"),
 )
 
 // -------------------------------
@@ -90,7 +93,7 @@ private class PianoSoundPool(
 @Composable
 fun PianoScreenVertical(
     modifier: Modifier = Modifier,
-    leftBarColor: Color = Color(0xFF8E44AD), // roxo da barra
+    leftBarColor: Color = Color(0xFF8E44AD),
     onKeyPressed: (String) -> Unit = {}
 ) {
     val ctx = LocalContext.current
@@ -101,93 +104,147 @@ fun PianoScreenVertical(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
-            .padding(8.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(12.dp)
     ) {
-        val totalWhite = octaveC4toB4.count { !it.isBlack } // 7 brancas
-        val whiteAreaWidth = maxWidth - 18.dp // largura útil das teclas (ajuste fino)
-        val whiteKeyHeight = (maxHeight - 16.dp) / totalWhite
+        val totalWhite = octaveC4toB4.count { !it.isBlack } // 7
+        val whiteAreaWidth = maxWidth - 22.dp
+        val whiteKeyHeight = (maxHeight - 24.dp) / totalWhite
+        val inset = 10.dp // respiro interno do “módulo teclado”
 
         Row(Modifier.fillMaxSize()) {
 
-            // --- Barra roxa à esquerda ---
+            // Barra roxa fixa (com cantos arredondados sutis)
             Box(
                 modifier = Modifier
-                    .width(56.dp)
+                    .width(60.dp)
                     .fillMaxHeight()
-                    .background(leftBarColor)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(leftBarColor, leftBarColor.copy(alpha = .9f))
+                        )
+                    )
+                    .shadow(4.dp, RoundedCornerShape(8.dp))
             )
 
-            // --- Área das teclas com moldura preta grossa (como na imagem) ---
+            Spacer(Modifier.width(12.dp))
+
+            // "Módulo" do teclado com moldura + sombra
             Box(
                 modifier = Modifier
                     .width(whiteAreaWidth)
                     .fillMaxHeight()
-                    .padding(start = 6.dp, end = 2.dp)
-                    .border(3.dp, Color.Black) // moldura externa
+                    .shadow(10.dp, RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFF9F9F9))
+                    .border(2.dp, Color(0xFF1D1D1D), RoundedCornerShape(14.dp))
+                    .padding(inset)
             ) {
-                // Camada 1: teclas brancas (faixas horizontais)
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(4.dp)
-                ) {
+                // Camada 1: teclas brancas (faixas)
+                Column(Modifier.fillMaxSize()) {
                     octaveC4toB4.filter { !it.isBlack }.forEach { key ->
-                        Box(
+                        WhiteKeyStyled(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(whiteKeyHeight)
-                                .padding(vertical = 2.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color.White, Color(0xFFF1F1F1))
-                                    )
-                                )
-                                .border(2.dp, Color(0xFF2A2A2A), RoundedCornerShape(2.dp))
-                                .clickable { piano.play(key.id); onKeyPressed(key.id) }
+                                .height(whiteKeyHeight),
+                            onPress = {
+                                piano.play(key.id)
+                                onKeyPressed(key.id)
+                            }
                         )
                     }
                 }
 
-                // Camada 2: teclas pretas (sobrepostas da esquerda para a direita)
-                // Posições relativas entre as brancas (em índices verticais):
-                // C# entre C(0) e D(1): ~0.66 ; D# ~1.5 ; F# ~3.66 ; G# ~4.5 ; A# ~5.33
-                val blackKeyHeight = whiteKeyHeight * 0.60f
-                val blackKeyWidth = whiteAreaWidth * 0.68f // comprimento para dentro do branco
-                val blackOffsets = listOf(
-                    "C#4" to 0.66f,
-                    "D#4" to 1.50f,
-                    "F#4" to 3.66f,
-                    "G#4" to 4.50f,
-                    "A#4" to 5.33f,
+                // Camada 2: teclas pretas sobrepostas (posicionadas entre as brancas)
+                val blackKeyHeight = whiteKeyHeight * 0.64f
+                val blackKeyWidth = whiteAreaWidth * 0.64f
+
+                // Índices corretos no layout vertical (entre C-D, D-E, F-G, G-A, A-B)
+                val blackBoundaries = listOf(
+                    "C#4" to 1,
+                    "D#4" to 2,
+                    "F#4" to 3, // <- ajuste que você fez
+                    "G#4" to 5,
+                    "A#4" to 6
                 )
 
-                blackOffsets.forEach { (id, relIndex) ->
-                    val key = octaveC4toB4.first { it.id == id }
-                    Box(
+                blackBoundaries.forEach { (id, boundaryIndex) ->
+                    BlackKeyStyled(
                         modifier = Modifier
                             .offset(
-                                // parte preta sai da esquerda (dentro da moldura)
-                                x = 6.dp, // pequeno recuo para a borda interna
-                                // centraliza a tecla preta entre as brancas correspondentes
-                                y = (whiteKeyHeight * relIndex) - (blackKeyHeight / 2)
+                                x = 0.dp,
+                                y = whiteKeyHeight * boundaryIndex - (blackKeyHeight / 2)
                             )
-                            .size(blackKeyWidth, blackKeyHeight)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color(0xFF111111), Color(0xFF2E2E2E))
-                                )
-                            )
-                            .border(1.dp, Color.Black, RoundedCornerShape(2.dp))
-                            .clickable { piano.play(key.id); onKeyPressed(key.id) }
+                            .size(blackKeyWidth, blackKeyHeight),
+                        onPress = {
+                            piano.play(id)
+                            onKeyPressed(id)
+                        }
                     )
                 }
             }
         }
     }
 }
+
+// ------ Tecla branca estilizada ------
+@Composable
+private fun WhiteKeyStyled(
+    modifier: Modifier,
+    onPress: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = RoundedCornerShape(6.dp)
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    if (!pressed)
+                        listOf(Color(0xFFFFFFFF), Color(0xFFF1F1F1), Color(0xFFE7E7E7))
+                    else
+                        listOf(Color(0xFFEDEDED), Color(0xFFE4E4E4), Color(0xFFDADADA))
+                )
+            )
+            .border(1.dp, Color(0xFF2B2B2B), shape)
+            .shadow(if (pressed) 1.dp else 3.dp, shape)
+            .clickable(interactionSource = interaction, indication = null) { onPress() }
+    )
+}
+
+// ------ Tecla preta estilizada ------
+@Composable
+private fun BlackKeyStyled(
+    modifier: Modifier,
+    onPress: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = RoundedCornerShape(6.dp)
+
+    Box(
+        contentAlignment = Alignment.Center, // ✅ isso é do Box
+        modifier = modifier
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    if (!pressed)
+                        listOf(Color(0xFF2F2F2F), Color(0xFF0E0E0E))
+                    else
+                        listOf(Color(0xFF3A3A3A), Color(0xFF1A1A1A))
+                )
+            )
+            .border(1.dp, Color.Black, shape)
+            .shadow(if (pressed) 4.dp else 8.dp, shape)
+            .clickable(interactionSource = interaction, indication = null) { onPress() }
+    ) {
+        // aqui dentro você pode colocar algo, tipo highlight ou símbolo
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable
