@@ -2,29 +2,34 @@ package br.com.neto.shimmerpads
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.graphics.toColorInt
+import br.com.neto.shimmerpads.ui.layoult.PianoScreenVertical
 import br.com.neto.shimmerpads.ui.theme.ShimmerpadsTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        // Ícones BRANCOS (estilo "dark") nas duas barras:
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark("#121212".toColorInt()),
+            navigationBarStyle = SystemBarStyle.dark("#121212".toColorInt())
+        )
+
         setContent {
             ShimmerpadsTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                androidx.compose.material3.Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                ) { innerPadding ->
                     PianoScreenVertical(
                         modifier = Modifier.padding(innerPadding),
-                        onKeyPressed = { keyId ->
-                            println("Tecla pressionada: $keyId")
-                        }
+                        onKeyPressed = { keyId -> println("Tecla: $keyId") }
                     )
                 }
             }

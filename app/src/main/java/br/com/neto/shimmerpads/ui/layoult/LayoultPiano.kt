@@ -1,8 +1,5 @@
-package br.com.neto.shimmerpads
+package br.com.neto.shimmerpads.ui.layoult
 
-
-import android.content.Context
-import android.media.SoundPool
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,30 +12,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import android.content.res.Configuration
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
+import br.com.neto.shimmerpads.audio.PianoSoundPool
+import br.com.neto.shimmerpads.data.PianoKey
 
-// -------------------------------
-// Modelo
-// -------------------------------
-private data class PianoKey(
-    val id: String,          // "C4", "C#4", etc
-    val isBlack: Boolean,
-    val rawResName: String   // nome do arquivo em res/raw sem extensão, ex: "c4"
-)
 
 // Oitava de C4 a B4
 private val octaveC4toB4 = listOf(
@@ -57,37 +41,6 @@ private val octaveC4toB4 = listOf(
 )
 
 // -------------------------------
-// SoundPool helper
-// -------------------------------
-private class PianoSoundPool(
-    private val context: Context,
-    private val keys: List<PianoKey>
-) {
-    private val soundPool = SoundPool.Builder().setMaxStreams(12).build()
-    private val soundIds = mutableMapOf<String, Int>() // id -> soundId
-
-    suspend fun loadAll() = withContext(Dispatchers.IO) {
-        keys.forEach { key ->
-            val resId = context.resources.getIdentifier(key.rawResName, "raw", context.packageName)
-            if (resId != 0) {
-                val soundId = soundPool.load(context, resId, 1)
-                soundIds[key.id] = soundId
-            }
-        }
-    }
-
-    fun play(keyId: String, volume: Float = 1f) {
-        val soundId = soundIds[keyId] ?: return
-        // leftVolume, rightVolume, priority, loop, rate
-        soundPool.play(soundId, volume, volume, 1, 0, 1f)
-    }
-
-    fun release() {
-        soundPool.release()
-    }
-}
-
-// -------------------------------
 // UI principal
 // -------------------------------
 @Composable
@@ -96,8 +49,15 @@ fun PianoScreenVertical(
     leftBarColor: Color = Color(0xFF8E44AD),
     onKeyPressed: (String) -> Unit = {}
 ) {
+
+
     val ctx = LocalContext.current
-    val piano = remember { PianoSoundPool(ctx, octaveC4toB4) }
+    val piano = remember {
+        PianoSoundPool(
+            ctx,
+            octaveC4toB4.associate { it.id to it.rawResName } // <- sem depender do data class lá dentro
+        )
+    }
     LaunchedEffect(Unit) { piano.loadAll() }
     DisposableEffect(Unit) { onDispose { piano.release() } }
 
@@ -158,13 +118,13 @@ fun PianoScreenVertical(
 
                 // Camada 2: teclas pretas sobrepostas (posicionadas entre as brancas)
                 val blackKeyHeight = whiteKeyHeight * 0.64f
-                val blackKeyWidth = whiteAreaWidth * 0.64f
+                val blackKeyWidth = whiteAreaWidth * 0.54f
 
                 // Índices corretos no layout vertical (entre C-D, D-E, F-G, G-A, A-B)
                 val blackBoundaries = listOf(
                     "C#4" to 1,
                     "D#4" to 2,
-                    "F#4" to 3, // <- ajuste que você fez
+                    "F#4" to 3,
                     "G#4" to 5,
                     "A#4" to 6
                 )
