@@ -1,5 +1,7 @@
 package br.com.neto.shimmerpads.ui.layoult
 
+import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.tooling.preview.Preview
-import br.com.neto.shimmerpads.audio.PianoSoundPool
 import br.com.neto.shimmerpads.data.PianoKey
 
 
@@ -40,6 +41,17 @@ private val octaveC4toB4 = listOf(
     PianoKey("B4", false, "b4"),
 )
 
+// --- helpers (coloque no mesmo arquivo do composable) ---
+private fun idToAssetFile(id: String): String {
+    // "C#4" -> "cs4.wav", "A4" -> "a4.wav"
+    val base = id.lowercase().replace("#", "s")
+    return "$base.wav"
+}
+
+private fun assetExists(ctx: Context, path: String): Boolean =
+    try { ctx.assets.openFd(path).close(); true } catch (_: Exception) { false }
+
+
 // -------------------------------
 // UI principal
 // -------------------------------
@@ -52,14 +64,32 @@ fun PianoScreenVertical(
 
 
     val ctx = LocalContext.current
-    val piano = remember {
-        PianoSoundPool(
-            ctx,
-            octaveC4toB4.associate { it.id to it.rawResName } // <- sem depender do data class lá dentro
-        )
+    val basePath = "libraries/analog" // assets/libraries/analog
+
+// Mapa id -> arquivo, filtrando o que realmente existe no pack
+    val keyToFile = remember {
+        octaveC4toB4
+            .map { it.id }
+            .map { id -> id to idToAssetFile(id) }
+            .mapNotNull { (id, file) ->
+                val fullPath = "$basePath/$file"
+                if (assetExists(ctx, fullPath)) id to file else null
+            }
+            .toMap()
     }
-    LaunchedEffect(Unit) { piano.loadAll() }
+
+// se não existir nenhum arquivo, você vê rápido no log
+    if (keyToFile.isEmpty()) {
+        Log.w("Piano", "Nenhum sample encontrado em assets/$basePath")
+    }
+
+    val piano = remember {
+        br.com.neto.shimmerpads.audio.AssetsSoundPool(ctx, basePath, keyToFile)
+    }
+
+    LaunchedEffect(basePath) { piano.loadAll() }
     DisposableEffect(Unit) { onDispose { piano.release() } }
+
 
     BoxWithConstraints(
         modifier = modifier
